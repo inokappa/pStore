@@ -73,6 +73,19 @@ func TestStdoutPutSecure(t *testing.T) {
     }
 }
 
+func TestStdoutPutList(t *testing.T) {
+	cmd := exec.Command("sh", "tests/test_stdout_put_list.sh")
+	stdout := new(bytes.Buffer)
+	cmd.Stdout = stdout
+	output := "StringList"
+
+	_ = cmd.Run()
+
+	if ! strings.Contains(stdout.String(), output) {
+        t.Fatal("Failed Test")
+    }
+}
+
 func TestConvertDate(t *testing.T) {
     str := "2018-09-28 22:52:24 +0000 UTC"
     layout := "2006-01-02 15:04:05 +0000 UTC"
