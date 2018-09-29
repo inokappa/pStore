@@ -5,6 +5,7 @@ import (
     "fmt"
     "flag"
     "strings"
+    "strconv"
     "bytes"
     "encoding/csv"
     "encoding/json"
@@ -21,7 +22,7 @@ import (
 )
 
 const (
-    AppVersion = "0.0.1"
+    AppVersion = "0.0.2"
 )
 
 var (
@@ -49,12 +50,13 @@ type Parameter struct {
     Name             string `json:"name"`
     Value            string `json:"value"`
     Type             string `json:"type"`
+    Version          string `json:"version"`
     LastModifiedDate string `json:"last_modified_date"`
 }
 
 func outputTbl(data [][]string) {
     table := tablewriter.NewWriter(os.Stdout)
-    table.SetHeader([]string{"Name", "Value", "Type", "LastModifiedDate"})
+    table.SetHeader([]string{"Name", "Value", "Type", "Version", "LastModifiedDate"})
     for _, value := range data {
         table.Append(value)
     }
@@ -78,7 +80,7 @@ func outputJson(data [][]string) {
     var rs []Parameter
     for _, record := range data {
         r := Parameter{Name:record[0], Value:record[1], Type:record[2],
-                       LastModifiedDate:record[3]}
+                       Version:record[3], LastModifiedDate:record[4]}
         rs = append(rs, r)
     }
     rj := Parameters{
@@ -94,13 +96,13 @@ func outputJson(data [][]string) {
 
 func awsSsmClient(profile string, region string, role string) *ssm.SSM {
     var config aws.Config
-    if profile != "" {
+    if profile != "" && role == "" {
         creds := credentials.NewSharedCredentials("", profile)
         config = aws.Config{Region: aws.String(region),
                             Credentials: creds,
                             Endpoint: aws.String(*argEndpoint)}
-    } else if role != "" {
-        sess := session.Must(session.NewSession())
+    } else if profile != "" && role != "" {
+        sess := session.Must(session.NewSessionWithOptions(session.Options{Profile:profile}))
         assumeRoler := sts.New(sess)
         creds := stscreds.NewCredentialsWithClient(assumeRoler, role)
         config = aws.Config{Region: aws.String(region),
@@ -183,6 +185,7 @@ func listParameters(ssmClient *ssm.SSM) {
                 *r.Name,
                 pValue,
                 *r.Type,
+                strconv.FormatInt(*res.Parameter.Version, 10),
                 d.In(jst).Format(layout),
             }
             allParameters = append(allParameters, Parameter)
