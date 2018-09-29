@@ -1,0 +1,11 @@
+version: '3'
+services:
+  moto_server:
+    build: .
+    container_name: moto-server
+    command: ["moto_server", "ssm", "-H", "0.0.0.0", "-p", "5000"]
+    volumes:
+      - .:/work
+    working_dir: /work
+    ports:
+      - "5000:5000"
