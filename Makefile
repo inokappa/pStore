@@ -10,7 +10,7 @@ depend: # 依存パッケージの導入
 	@gom install
 
 test: # test テストの実行
-	@gom test -v
+	@./tests/_setup.sh && gom test -v; ./tests/_teardown.sh
 
 build: build # バイナリをビルドする
 	@./build.sh pStore.go

@@ -22,7 +22,7 @@ import (
 )
 
 const (
-    AppVersion = "0.0.2"
+    AppVersion = "0.0.3"
 )
 
 var (
@@ -147,6 +147,36 @@ func delParameter(ssmClient *ssm.SSM, pName string) {
     }
 }
 
+func convertDate(d time.Time) (convertedDate string) {
+    const layout = "2006-01-02 15:04:05"
+    jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+    convertedDate = d.In(jst).Format(layout)
+
+    return convertedDate
+}
+
+func getParameter(ssmClient *ssm.SSM, pName string) (pValue string, pVersion string) {
+    params := &ssm.GetParameterInput {
+        Name: aws.String(pName),
+        WithDecryption: aws.Bool(true),
+    }
+    v, err := ssmClient.GetParameter(params)
+    if err != nil {
+        fmt.Println(err.Error())
+        os.Exit(1)
+    }
+
+    if *v.Parameter.Type == "SecureString" {
+        pValue = "******************"
+    } else {
+        pValue = *v.Parameter.Value
+    }
+
+    pVersion = strconv.FormatInt(*v.Parameter.Version, 10)
+
+    return pValue, pVersion
+}
+
 func listParameters(ssmClient *ssm.SSM) {
     params := &ssm.DescribeParametersInput {}
 
@@ -158,35 +188,14 @@ func listParameters(ssmClient *ssm.SSM) {
             os.Exit(1)
         }
         for _, r := range res.Parameters {
-            // 別関数に切り出す
-            const layout = "2006-01-02 15:04:05"
-            jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-            d := *r.LastModifiedDate
-
-            // 別関数に切り出す
-            params := &ssm.GetParameterInput {
-                Name: aws.String(*r.Name),
-                WithDecryption: aws.Bool(true),
-            }
-            res, err := ssmClient.GetParameter(params)
-            if err != nil {
-                fmt.Println(err.Error())
-                os.Exit(1)
-            }
-
-            var pValue string
-            if *res.Parameter.Type == "SecureString" {
-                pValue = "******************"
-            } else {
-                pValue = *res.Parameter.Value
-            }
-
+            convertedDate := convertDate(*r.LastModifiedDate)
+            pValue, pVersion := getParameter(ssmClient, *r.Name)
             Parameter := []string{
                 *r.Name,
                 pValue,
                 *r.Type,
-                strconv.FormatInt(*res.Parameter.Version, 10),
-                d.In(jst).Format(layout),
+                pVersion,
+                convertedDate,
             }
             allParameters = append(allParameters, Parameter)
         }
