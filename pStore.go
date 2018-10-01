@@ -101,6 +101,12 @@ func awsSsmClient(profile string, region string, role string) *ssm.SSM {
         config = aws.Config{Region: aws.String(region),
                             Credentials: creds,
                             Endpoint: aws.String(*argEndpoint)}
+    } else if profile == "" && role != "" {
+        sess := session.Must(session.NewSession())
+        creds := stscreds.NewCredentials(sess, role)
+        config = aws.Config{Region: aws.String(region),
+            Credentials: creds,
+            Endpoint: aws.String(*argEndpoint)}
     } else if profile != "" && role != "" {
         sess := session.Must(session.NewSessionWithOptions(session.Options{Profile:profile}))
         assumeRoler := sts.New(sess)
