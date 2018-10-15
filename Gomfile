@@ -1,2 +1,3 @@
 gom 'github.com/aws/aws-sdk-go'
 gom 'github.com/olekukonko/tablewriter'
+gom 'golang.org/x/crypto/ssh/terminal'

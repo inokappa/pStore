@@ -19,10 +19,12 @@ import (
     "github.com/aws/aws-sdk-go/service/ssm"
 
     "github.com/olekukonko/tablewriter"
+
+    "golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-    AppVersion = "0.0.4"
+    AppVersion = "0.0.7"
 )
 
 var (
@@ -225,17 +227,19 @@ func main() {
     flag.Parse()
 
     if *argVersion {
-      fmt.Println(AppVersion)
-      os.Exit(0)
+        fmt.Println(AppVersion)
+        os.Exit(0)
     }
 
     ssmClient := awsSsmClient(*argProfile, *argRegion, *argRole)
 
+    var yorN string
     if *argPut {
         if *argName == "" {
             fmt.Println("パラメータの名前を指定して下さい.")
             os.Exit(1)
         }
+
         // Type を選択する (デフォルトは String とする)
         var pType string
         if *argSecure {
@@ -245,13 +249,61 @@ func main() {
         } else {
             pType = "String"
         }
-        putParameter(ssmClient, *argName, pType, *argValue)
+
+        // パラメータの値を入力する
+        var pValue string
+        if *argValue == "" {
+            fmt.Print("パラメータの値を入力しますか?(y/n): ")
+            fmt.Scan(&yorN)
+            switch yorN {
+            case "y", "Y":
+                fmt.Println("パラメータの値を入力して下さい: ")
+                if pType == "SecureString" {
+                    maskedValue1, err := terminal.ReadPassword(0)
+                    if err != nil {
+                        fmt.Println("入力した値が不正です.")
+                        os.Exit(1)
+                    }
+                    fmt.Println("パラメータの値をもう一度入力して下さい: ")
+                    maskedValue2, err := terminal.ReadPassword(0)
+                    if err == nil && string(maskedValue1) == string(maskedValue2) {
+                        pValue = string(maskedValue2)
+                    } else {
+                        fmt.Println("入力した値が不正です.")
+                        os.Exit(1)
+                    }
+                } else {
+                    fmt.Scan(&pValue)
+                }
+            case "n", "N":
+                fmt.Println("処理を中止します. パラメータの値を指定して下さい.")
+                os.Exit(1)
+            default:
+                fmt.Println("処理を中止します. パラメータの値を指定して下さい.")
+                os.Exit(1)
+            }
+        } else {
+            pValue = *argValue
+        }
+        putParameter(ssmClient, *argName, pType, pValue)
     } else if *argDel {
         if *argName == "" {
             fmt.Println("パラメータの名前を指定して下さい.")
             os.Exit(1)
         }
-        delParameter(ssmClient, *argName)
+        fmt.Print("パラメータを削除しますか?(y/n): ")
+        fmt.Scan(&yorN)
+        switch yorN {
+        case "y", "Y":
+            fmt.Println("パラメータを削除します.")
+            delParameter(ssmClient, *argName)
+        case "n", "N":
+            fmt.Println("処理を中止します.")
+            os.Exit(0)
+        default:
+            fmt.Println("処理を中止します.")
+            os.Exit(0)
+        }
     } else {
         listParameters(ssmClient)
     }
